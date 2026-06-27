@@ -99,6 +99,42 @@
   #docPane{flex:1.25;background:var(--panel);display:flex;flex-direction:column;min-width:0;}
   #viewerHead{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
   #viewerHead .title{font-size:13.5px;font-weight:600;}
+  .view-tabs{display:flex;gap:4px;background:var(--panel-2);border-radius:8px;padding:3px;}
+  .view-tab{border:none;background:none;padding:6px 14px;font-size:12.5px;border-radius:6px;cursor:pointer;color:var(--muted);}
+  .view-tab.active{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08);}
+
+  /* Dashboard */
+  #dashboardBody{flex:1;overflow-y:auto;padding:26px;display:none;}
+  #dashboardBody.active{display:block;}
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+  .dash-card{background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+  .dash-card h4{margin:0 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+
+  .gauge-card{display:flex;align-items:center;gap:18px;}
+  .gauge-wrap{position:relative;width:96px;height:96px;flex-shrink:0;}
+  .gauge-wrap svg{transform:rotate(-90deg);}
+  .gauge-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .gauge-num .n{font-size:24px;font-weight:800;line-height:1;}
+  .gauge-num .lbl{font-size:9px;color:var(--muted);text-transform:uppercase;}
+  .gauge-side .verdict{font-size:14px;font-weight:700;margin-bottom:4px;}
+  .gauge-side .desc{font-size:12px;color:var(--muted);line-height:1.5;}
+
+  .money-row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .money-row:last-child{border-bottom:none;}
+  .money-row .amt{font-weight:700;font-family:var(--mono);}
+
+  .timeline{position:relative;padding-left:18px;}
+  .timeline::before{content:'';position:absolute;left:4px;top:4px;bottom:4px;width:2px;background:var(--border);}
+  .timeline-item{position:relative;padding-bottom:14px;font-size:12.5px;}
+  .timeline-item::before{content:'';position:absolute;left:-18px;top:3px;width:9px;height:9px;border-radius:50%;background:var(--accent);}
+  .timeline-item .when{font-weight:700;color:var(--ink);}
+  .timeline-item .what{color:var(--muted);}
+
+  .flag-list{display:flex;flex-direction:column;gap:8px;}
+  .flag-item{display:flex;gap:10px;padding:10px 12px;background:var(--danger-soft);border:1px solid #f0d6cc;border-radius:8px;font-size:12.5px;}
+  .flag-item .ico{color:var(--danger);font-weight:800;}
+  .flag-item .txt b{display:block;color:#a13d27;}
+  .flag-item .txt span{color:#8a4a35;}
   #pageNav{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--muted);}
   #pageNav button{background:var(--panel-2);border:1px solid var(--border);border-radius:6px;
     padding:4px 9px;cursor:pointer;color:var(--ink);font-size:12px;}
@@ -108,7 +144,22 @@
   #emptyDoc .big{font-family:var(--serif);font-size:17px;color:var(--ink);}
   #pdfCanvas{box-shadow:0 1px 3px rgba(0,0,0,.08), 0 0 0 1px var(--border);border-radius:4px;max-width:100%;}
 
-  #clauseStrip{display:none;gap:8px;padding:12px 20px;flex-wrap:wrap;border-top:1px solid var(--border);background:var(--panel-2);}
+  #clauseStrip{display:none;gap:8px;padding:12px 20px;flex-wrap:wrap;border-top:1px solid var(--border);background:var(--panel-2);align-items:center;}
+  #riskScoreBadge{
+    display:none;align-items:center;gap:10px;padding:8px 16px;border-radius:20px;
+    font-weight:700;font-size:13px;margin-right:6px;
+  }
+  #riskScoreBadge.show{display:flex;}
+  #riskScoreBadge .ring{
+    width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:800;color:#fff;
+  }
+  #riskScoreBadge.low{background:#e8f7ee;color:#1c7a44;}
+  #riskScoreBadge.low .ring{background:#2fa86b;}
+  #riskScoreBadge.med{background:#fef6e7;color:#9a6a00;}
+  #riskScoreBadge.med .ring{background:#e0a000;}
+  #riskScoreBadge.high{background:var(--danger-soft);color:#a13d27;}
+  #riskScoreBadge.high .ring{background:var(--danger);}
   #clauseStrip.active{display:flex;}
   .clause-chip{font-size:11.5px;padding:5px 10px;border-radius:14px;border:1px solid var(--border);color:var(--muted);background:var(--panel);}
   .clause-chip.risk{border-color:var(--danger);color:var(--danger);background:var(--danger-soft);}
@@ -191,6 +242,10 @@
     <section id="docPane">
       <div id="viewerHead" style="display:none;">
         <div class="title" id="viewerTitle">—</div>
+        <div class="view-tabs">
+          <button class="view-tab active" id="tabDashboard">Dashboard</button>
+          <button class="view-tab" id="tabDocument">Document</button>
+        </div>
         <div id="pageNav">
           <button id="prevPage">‹</button>
           <span id="pageInfo">1 / 1</span>
@@ -204,7 +259,49 @@
         </div>
         <canvas id="pdfCanvas" style="display:none;"></canvas>
       </div>
-      <div id="clauseStrip"></div>
+      <div id="dashboardBody">
+        <div class="dash-grid">
+          <div class="dash-card gauge-card">
+            <div class="gauge-wrap">
+              <svg width="96" height="96" viewBox="0 0 96 96">
+                <circle cx="48" cy="48" r="40" fill="none" stroke="var(--border)" stroke-width="10"/>
+                <circle id="gaugeArc" cx="48" cy="48" r="40" fill="none" stroke="var(--accent)" stroke-width="10"
+                  stroke-dasharray="251" stroke-dashoffset="251" stroke-linecap="round"/>
+              </svg>
+              <div class="gauge-num"><span class="n" id="gaugeNum">0</span><span class="lbl">/ 10</span></div>
+            </div>
+            <div class="gauge-side">
+              <div class="verdict" id="gaugeVerdict">—</div>
+              <div class="desc">Based on number and severity of risky clauses detected in this document.</div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <h4>Money Terms</h4>
+            <div class="money-row"><span>Monthly Rent</span><span class="amt">PKR 45,000</span></div>
+            <div class="money-row"><span>Security Deposit</span><span class="amt">PKR 90,000</span></div>
+            <div class="money-row"><span>Late Fee</span><span class="amt">PKR 1,000/day</span></div>
+            <div class="money-row"><span>Early Termination Penalty</span><span class="amt">PKR 90,000</span></div>
+          </div>
+        </div>
+        <div class="dash-grid">
+          <div class="dash-card">
+            <h4>Key Dates &amp; Timeline</h4>
+            <div class="timeline">
+              <div class="timeline-item"><div class="when">Day 1</div><div class="what">Lease starts, deposit due</div></div>
+              <div class="timeline-item"><div class="when">Monthly</div><div class="what">Rent due on the 5th</div></div>
+              <div class="timeline-item"><div class="when">Month 10</div><div class="what">60-day notice deadline to avoid auto-renewal</div></div>
+              <div class="timeline-item"><div class="when">Month 12</div><div class="what">Lease term ends / auto-renews</div></div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <h4>Red Flags</h4>
+            <div class="flag-list" id="redFlagList"></div>
+          </div>
+        </div>
+      </div>
+      <div id="clauseStrip">
+        <div id="riskScoreBadge"><span class="ring" id="riskRingVal">0</span><span id="riskLabel">Risk Score</span></div>
+      </div>
     </section>
 
     <!-- RIGHT: Chat -->
@@ -242,6 +339,20 @@ const fileInput = document.getElementById('fileInput');
 const sourceList = document.getElementById('sourceList');
 const viewerHead = document.getElementById('viewerHead');
 const viewerTitle = document.getElementById('viewerTitle');
+const dashboardBody = document.getElementById('dashboardBody');
+const viewerBody = document.getElementById('viewerBody');
+const tabDashboard = document.getElementById('tabDashboard');
+const tabDocument = document.getElementById('tabDocument');
+
+tabDashboard.addEventListener('click', () => switchView('dashboard'));
+tabDocument.addEventListener('click', () => switchView('document'));
+
+function switchView(view){
+  tabDashboard.classList.toggle('active', view === 'dashboard');
+  tabDocument.classList.toggle('active', view === 'document');
+  dashboardBody.classList.toggle('active', view === 'dashboard');
+  viewerBody.style.display = view === 'document' ? 'flex' : 'none';
+}
 const emptyDoc = document.getElementById('emptyDoc');
 const canvas = document.getElementById('pdfCanvas');
 const pageInfo = document.getElementById('pageInfo');
@@ -338,6 +449,7 @@ async function openDoc(doc){
   canvas.style.display = 'block';
   viewerHead.style.display = 'flex';
   viewerTitle.textContent = doc.name;
+  switchView('dashboard');
   await renderPage(curPage);
 }
 
@@ -355,17 +467,63 @@ nextPage.onclick = () => { if (curPage < activeDoc.pdf.numPages) renderPage(++cu
 // DEMO chip strip — replace with real clause detection if desired
 function fakeExtractClauses(){
   clauseStrip.classList.add('active');
-  clauseStrip.innerHTML = "";
-  [
+  const chips = [
     {label:"12-month term", risk:false},
     {label:"Auto-renewal clause", risk:true},
     {label:"Security deposit: 2 months", risk:false},
     {label:"Early termination penalty", risk:true},
-  ].forEach(c => {
+  ];
+  // remove old chips but keep the risk badge element
+  [...clauseStrip.querySelectorAll('.clause-chip')].forEach(c => c.remove());
+  chips.forEach(c => {
     const chip = document.createElement('div');
     chip.className = 'clause-chip' + (c.risk ? ' risk' : '');
     chip.textContent = c.label + (c.risk ? ' ⚠' : '');
     clauseStrip.appendChild(chip);
+  });
+
+  // Risk score: simple demo formula — % of flagged clauses, scaled to 0-10
+  const riskyCount = chips.filter(c => c.risk).length;
+  const score = Math.min(10, Math.round((riskyCount / chips.length) * 10));
+  updateRiskBadge(score);
+}
+
+function updateRiskBadge(score){
+  const badge = document.getElementById('riskScoreBadge');
+  const ring = document.getElementById('riskRingVal');
+  const label = document.getElementById('riskLabel');
+  badge.classList.add('show');
+  badge.classList.remove('low','med','high');
+  ring.textContent = score;
+  if (score <= 3){ badge.classList.add('low'); label.textContent = 'Low Risk'; }
+  else if (score <= 6){ badge.classList.add('med'); label.textContent = 'Medium Risk'; }
+  else { badge.classList.add('high'); label.textContent = 'High Risk'; }
+
+  // Drive dashboard gauge
+  const circumference = 251;
+  const offset = circumference - (score / 10) * circumference;
+  const arc = document.getElementById('gaugeArc');
+  const num = document.getElementById('gaugeNum');
+  const verdict = document.getElementById('gaugeVerdict');
+  arc.style.transition = 'stroke-dashoffset .6s ease';
+  arc.style.strokeDashoffset = offset;
+  num.textContent = score;
+  if (score <= 3){ arc.style.stroke = '#2fa86b'; verdict.textContent = 'Looks fairly safe'; verdict.style.color = '#1c7a44'; }
+  else if (score <= 6){ arc.style.stroke = '#e0a000'; verdict.textContent = 'Some clauses need attention'; verdict.style.color = '#9a6a00'; }
+  else { arc.style.stroke = 'var(--danger)'; verdict.textContent = 'High risk — review carefully'; verdict.style.color = 'var(--danger)'; }
+
+  // Populate red flags list
+  const redFlagList = document.getElementById('redFlagList');
+  redFlagList.innerHTML = "";
+  const flags = [
+    {title:"Auto-renewal clause", desc:"Contract renews automatically unless you cancel 60 days in advance."},
+    {title:"Early termination penalty", desc:"Forfeits deposit + 2 months' rent if you leave early."},
+  ];
+  flags.forEach(f => {
+    const item = document.createElement('div');
+    item.className = 'flag-item';
+    item.innerHTML = `<span class="ico">⚠</span><div class="txt"><b>${f.title}</b><span>${f.desc}</span></div>`;
+    redFlagList.appendChild(item);
   });
 }
 
@@ -450,7 +608,48 @@ async function callAdvisor(userQuestion){
       return;
     }
     const answer = data.choices?.[0]?.message?.content || "No response received.";
-    setBotReply(thinking, answer.replace(/\n/g, "<br>"));
+function renderMarkdown(text){
+  // Tables: detect blocks of lines starting with |
+  const lines = text.split("\n");
+  let html = "";
+  let i = 0;
+  while (i < lines.length){
+    const line = lines[i];
+    if (line.trim().startsWith("|")){
+      // collect contiguous table lines
+      const tableLines = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")){
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      // filter out separator rows like |---|---|
+      const rows = tableLines
+        .filter(l => !/^\|[\s\-:|]+\|$/.test(l))
+        .map(l => l.replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim()));
+      if (rows.length){
+        html += '<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12.5px;">';
+        rows.forEach((row, idx) => {
+          html += "<tr>";
+          row.forEach(cell => {
+            const tag = idx === 0 ? "th" : "td";
+            html += `<${tag} style="border:1px solid var(--border);padding:6px 8px;text-align:left;${idx===0?'background:var(--panel-2);font-weight:700;':''}">${inlineMd(cell)}</${tag}>`;
+          });
+          html += "</tr>";
+        });
+        html += "</table>";
+      }
+      continue;
+    }
+    html += inlineMd(line) + "<br>";
+    i++;
+  }
+  return html;
+}
+function inlineMd(s){
+  return s.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+}
+
+setBotReply(thinking, renderMarkdown(answer));
   } catch (err){
     setBotReply(thinking, `Request failed: ${err.message}`);
   }
