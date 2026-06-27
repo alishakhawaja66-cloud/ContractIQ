@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ContractIQ — Understand any contract before you sign</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --panel-2: #fbfbf9;
+    --border: #e3e1da;
+    --ink: #1f1d18;
+    --muted: #6b6a63;
+    --accent: #8a5cf6;       /* violet — distinct, not the usual blue/teal */
+    --accent-soft: #f1ecfd;
+    --accent-line: #d9c9fb;
+    --danger: #c8553d;
+    --danger-soft: #fbeee9;
+    --radius: 10px;
+    --serif: "Source Serif Pro", Georgia, serif;
+    --sans: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: "IBM Plex Mono", "Courier New", monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+  #app{height:100vh;display:flex;flex-direction:column;}
+  *{transition:border-color .15s ease, background-color .15s ease, color .15s ease, opacity .15s ease, transform .15s ease;}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes pulse{0%,100%{opacity:.35;}50%{opacity:1;}}
+  .msg{animation:fadeUp .25s ease;}
+  .source-card{animation:fadeUp .2s ease;}
+
+  /* ===== Top bar ===== */
+  header{
+    display:flex;align-items:center;gap:18px;
+    padding:12px 22px;background:var(--panel);border-bottom:1px solid var(--border);
+  }
+  .brand{display:flex;align-items:baseline;gap:8px;}
+  .brand .mark{font-family:var(--serif);font-weight:700;font-size:19px;}
+  .brand .mark .dot{color:var(--accent);}
+  .brand .tag{font-size:12px;color:var(--muted);}
+  .keybox{
+    margin-left:auto;display:flex;align-items:center;gap:8px;
+  }
+  .keybox input{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--ink);
+    padding:8px 12px;font-size:12.5px;border-radius:8px;width:240px;outline:none;font-family:var(--mono);
+  }
+  .keybox input:focus{border-color:var(--accent);}
+  .keybox button{
+    background:var(--accent);border:none;color:#fff;font-weight:600;
+    padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12.5px;
+  }
+  .keybox button:hover{background:#7a48ed;}
+  .status-dot{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:5px;font-family:var(--mono);}
+  .status-dot .led{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block;}
+  .status-dot.ok .led{background:#2fa86b;}
+
+  /* ===== Main 3-pane layout ===== */
+  main{flex:1;display:flex;min-height:0;gap:1px;background:var(--border);}
+
+  /* LEFT — sources */
+  #sourcesPane{
+    width:270px;flex-shrink:0;background:var(--panel);display:flex;flex-direction:column;
+  }
+  .pane-title{
+    padding:16px 18px 10px;font-size:13px;font-weight:700;letter-spacing:.02em;
+    color:var(--ink);text-transform:uppercase;
+  }
+  #uploadBtn{
+    margin:0 18px 14px;padding:11px;border:1.5px dashed var(--accent-line);
+    border-radius:var(--radius);background:var(--accent-soft);color:var(--accent);
+    font-size:13px;font-weight:600;text-align:center;cursor:pointer;
+  }
+  #uploadBtn:hover{background:#ebe2fc;}
+  #fileInput{display:none;}
+  #sourceList{flex:1;overflow-y:auto;padding:0 14px 14px;display:flex;flex-direction:column;gap:6px;}
+  .source-card{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
+    padding:10px 12px;cursor:pointer;font-size:13px;display:flex;flex-direction:column;gap:2px;
+    position:relative;
+  }
+  .source-card:hover{border-color:var(--accent-line);box-shadow:0 2px 8px rgba(0,0,0,.05);transform:translateY(-1px);}
+  .source-card.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 2px 10px rgba(138,92,246,.15);}
+  .source-card .name{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:18px;}
+  .source-card .meta{font-size:11px;color:var(--muted);}
+  .source-card .del{
+    position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;
+    background:transparent;border:none;color:var(--muted);font-size:13px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;line-height:1;
+  }
+  .source-card .del:hover{background:var(--danger-soft);color:var(--danger);}
+  .empty-hint{padding:18px;font-size:12.5px;color:var(--muted);line-height:1.5;}
+
+  /* CENTER — viewer */
+  #docPane{flex:1.25;background:var(--panel);display:flex;flex-direction:column;min-width:0;}
+  #viewerHead{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  #viewerHead .title{font-size:13.5px;font-weight:600;}
+  #pageNav{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--muted);}
+  #pageNav button{background:var(--panel-2);border:1px solid var(--border);border-radius:6px;
+    padding:4px 9px;cursor:pointer;color:var(--ink);font-size:12px;}
+  #pageNav button:hover{border-color:var(--accent);color:var(--accent);}
+  #viewerBody{flex:1;overflow:auto;padding:24px;display:flex;justify-content:center;}
+  #emptyDoc{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);}
+  #emptyDoc .big{font-family:var(--serif);font-size:17px;color:var(--ink);}
+  #pdfCanvas{box-shadow:0 1px 3px rgba(0,0,0,.08), 0 0 0 1px var(--border);border-radius:4px;max-width:100%;}
+
+  #clauseStrip{display:none;gap:8px;padding:12px 20px;flex-wrap:wrap;border-top:1px solid var(--border);background:var(--panel-2);}
+  #clauseStrip.active{display:flex;}
+  .clause-chip{font-size:11.5px;padding:5px 10px;border-radius:14px;border:1px solid var(--border);color:var(--muted);background:var(--panel);}
+  .clause-chip.risk{border-color:var(--danger);color:var(--danger);background:var(--danger-soft);}
+
+  /* RIGHT — chat */
+  #chatPane{width:380px;flex-shrink:0;background:var(--panel);display:flex;flex-direction:column;}
+  #chatHead{padding:16px 18px 10px;}
+  #chatHead .role{font-family:var(--serif);font-size:15px;font-weight:700;}
+  #chatHead .role .accent{color:var(--accent);}
+  #chatHead .sub{font-size:12px;color:var(--muted);margin-top:3px;}
+  #quickActions{display:flex;flex-wrap:wrap;gap:7px;padding:10px 18px;}
+  .qa-btn{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--ink);
+    font-size:12px;padding:7px 11px;border-radius:16px;cursor:pointer;
+  }
+  .qa-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
+  .qa-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  #messages{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:14px;}
+  .msg{font-size:13.5px;line-height:1.55;}
+  .msg.user{align-self:flex-end;max-width:88%;background:var(--accent);color:#fff;
+    padding:9px 13px;border-radius:12px 12px 3px 12px;}
+  .msg.bot{max-width:96%;}
+  .msg.bot .label{font-size:10.5px;font-weight:700;color:var(--accent);text-transform:uppercase;
+    letter-spacing:.05em;margin-bottom:4px;display:block;}
+  .msg.bot .bubble{background:var(--panel-2);border:1px solid var(--border);border-radius:3px 12px 12px 12px;padding:10px 13px;}
+  .msg.system{align-self:center;font-size:11.5px;color:var(--muted);font-family:var(--mono);}
+  .msg .time{font-size:10px;color:var(--muted);margin-top:3px;display:block;}
+  .typing-dots{display:inline-flex;gap:3px;padding:10px 13px;background:var(--panel-2);
+    border:1px solid var(--border);border-radius:3px 12px 12px 12px;}
+  .typing-dots span{width:6px;height:6px;border-radius:50%;background:var(--accent);
+    animation:pulse 1s infinite ease-in-out;}
+  .typing-dots span:nth-child(2){animation-delay:.2s;}
+  .typing-dots span:nth-child(3){animation-delay:.4s;}
+
+  #composer{display:flex;gap:8px;padding:14px 18px;border-top:1px solid var(--border);}
+  #composer input{
+    flex:1;background:var(--panel-2);border:1px solid var(--border);color:var(--ink);
+    padding:10px 13px;font-size:13.5px;border-radius:10px;outline:none;
+  }
+  #composer input:focus{border-color:var(--accent);}
+  #composer button{
+    background:var(--accent);border:none;color:#fff;font-weight:600;
+    padding:0 18px;border-radius:10px;cursor:pointer;font-size:13.5px;
+  }
+  #composer button:disabled{opacity:.4;cursor:not-allowed;}
+
+  footer{padding:7px 20px;border-top:1px solid var(--border);background:var(--panel);
+    font-size:10.5px;color:var(--muted);text-align:center;}
+
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="mark">Contract<span class="dot">IQ</span></div>
+      <div class="tag">Understand any contract before you sign</div>
+    </div>
+    <div class="keybox">
+      <input type="password" id="apiKeyInput" placeholder="Paste your OpenRouter API key">
+      <button id="saveKeyBtn">Save</button>
+      <span class="status-dot" id="keyStatus"><span class="led"></span>no key</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT: Sources -->
+    <section id="sourcesPane">
+      <div class="pane-title">Documents</div>
+      <label id="uploadBtn">⤒ Upload PDF<input type="file" id="fileInput" accept="application/pdf"></label>
+      <div id="sourceList">
+        <div class="empty-hint">Upload a rental agreement, offer letter, or any contract to begin.</div>
+      </div>
+    </section>
+
+    <!-- CENTER: Viewer -->
+    <section id="docPane">
+      <div id="viewerHead" style="display:none;">
+        <div class="title" id="viewerTitle">—</div>
+        <div id="pageNav">
+          <button id="prevPage">‹</button>
+          <span id="pageInfo">1 / 1</span>
+          <button id="nextPage">›</button>
+        </div>
+      </div>
+      <div id="viewerBody">
+        <div id="emptyDoc">
+          <div class="big">No document open</div>
+          <div>Upload a PDF on the left to view it here</div>
+        </div>
+        <canvas id="pdfCanvas" style="display:none;"></canvas>
+      </div>
+      <div id="clauseStrip"></div>
+    </section>
+
+    <!-- RIGHT: Chat -->
+    <section id="chatPane">
+      <div id="chatHead">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <div class="role">Legal <span class="accent">Document Advisor</span></div>
+          <button id="clearChatBtn" style="background:none;border:1px solid var(--border);color:var(--muted);
+            font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;">Clear chat</button>
+        </div>
+        <div class="sub">Explains clauses in plain language · not legal advice</div>
+      </div>
+      <div id="quickActions">
+        <button class="qa-btn" data-q="Summarize this contract in plain English." disabled>Summarize</button>
+        <button class="qa-btn" data-q="Which clauses are risky or unusual, and why?" disabled>Flag risky clauses</button>
+        <button class="qa-btn" data-q="What should I try to negotiate before signing?" disabled>What to negotiate</button>
+      </div>
+      <div id="messages">
+        <div class="msg system">Upload a contract to start the conversation.</div>
+      </div>
+      <div id="composer">
+        <input type="text" id="chatInput" placeholder="Upload a contract first…" disabled>
+        <button id="sendBtn" disabled>Send</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>Educational use only — always confirm with a licensed lawyer before signing anything.</footer>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const fileInput = document.getElementById('fileInput');
+const sourceList = document.getElementById('sourceList');
+const viewerHead = document.getElementById('viewerHead');
+const viewerTitle = document.getElementById('viewerTitle');
+const emptyDoc = document.getElementById('emptyDoc');
+const canvas = document.getElementById('pdfCanvas');
+const pageInfo = document.getElementById('pageInfo');
+const prevPage = document.getElementById('prevPage');
+const nextPage = document.getElementById('nextPage');
+const messages = document.getElementById('messages');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const qaButtons = document.querySelectorAll('.qa-btn');
+const clauseStrip = document.getElementById('clauseStrip');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const saveKeyBtn = document.getElementById('saveKeyBtn');
+const keyStatus = document.getElementById('keyStatus');
+const clearChatBtn = document.getElementById('clearChatBtn');
+
+clearChatBtn.addEventListener('click', () => {
+  messages.innerHTML = '<div class="msg system">Chat cleared.</div>';
+});
+
+function nowStamp(){
+  return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+let docs = [];          // {name, size, pdf, text}
+let activeDoc = null;
+let curPage = 1;
+let geminiKey = "";
+
+saveKeyBtn.addEventListener('click', () => {
+  geminiKey = apiKeyInput.value.trim();
+  if (geminiKey){
+    keyStatus.classList.add('ok');
+    keyStatus.innerHTML = '<span class="led"></span>key set';
+    addMessage('system', 'OpenRouter API key saved for this session.');
+  } else {
+    keyStatus.classList.remove('ok');
+    keyStatus.innerHTML = '<span class="led"></span>no key';
+  }
+});
+
+fileInput.addEventListener('change', e => { if (e.target.files[0]) loadPDF(e.target.files[0]); });
+
+async function loadPDF(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(" ") + "\n";
+  }
+  const doc = { name: file.name, size: (file.size/1024/1024).toFixed(2)+" MB", pdf, text };
+  docs.push(doc);
+  renderSourceList();
+  openDoc(doc);
+  enableChat();
+  fakeExtractClauses();
+}
+
+function renderSourceList(){
+  sourceList.innerHTML = "";
+  docs.forEach(doc => {
+    const card = document.createElement('div');
+    card.className = 'source-card' + (doc === activeDoc ? ' active' : '');
+    card.innerHTML = `<div class="name">${doc.name}</div><div class="meta">${doc.size}</div>
+      <button class="del" title="Remove">✕</button>`;
+    card.onclick = (e) => { if (!e.target.classList.contains('del')) openDoc(doc); };
+    card.querySelector('.del').onclick = (e) => {
+      e.stopPropagation();
+      docs = docs.filter(d => d !== doc);
+      if (activeDoc === doc){
+        activeDoc = docs[0] || null;
+        if (activeDoc) openDoc(activeDoc);
+        else {
+          emptyDoc.style.display = 'flex';
+          canvas.style.display = 'none';
+          viewerHead.style.display = 'none';
+        }
+      }
+      renderSourceList();
+    };
+    sourceList.appendChild(card);
+  });
+  if (docs.length === 0){
+    sourceList.innerHTML = '<div class="empty-hint">Upload a rental agreement, offer letter, or any contract to begin.</div>';
+  }
+}
+
+async function openDoc(doc){
+  activeDoc = doc;
+  curPage = 1;
+  renderSourceList();
+  emptyDoc.style.display = 'none';
+  canvas.style.display = 'block';
+  viewerHead.style.display = 'flex';
+  viewerTitle.textContent = doc.name;
+  await renderPage(curPage);
+}
+
+async function renderPage(num){
+  const page = await activeDoc.pdf.getPage(num);
+  const viewport = page.getViewport({scale: 1.3});
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+  pageInfo.textContent = `${num} / ${activeDoc.pdf.numPages}`;
+}
+prevPage.onclick = () => { if (curPage > 1) renderPage(--curPage); };
+nextPage.onclick = () => { if (curPage < activeDoc.pdf.numPages) renderPage(++curPage); };
+
+// DEMO chip strip — replace with real clause detection if desired
+function fakeExtractClauses(){
+  clauseStrip.classList.add('active');
+  clauseStrip.innerHTML = "";
+  [
+    {label:"12-month term", risk:false},
+    {label:"Auto-renewal clause", risk:true},
+    {label:"Security deposit: 2 months", risk:false},
+    {label:"Early termination penalty", risk:true},
+  ].forEach(c => {
+    const chip = document.createElement('div');
+    chip.className = 'clause-chip' + (c.risk ? ' risk' : '');
+    chip.textContent = c.label + (c.risk ? ' ⚠' : '');
+    clauseStrip.appendChild(chip);
+  });
+}
+
+function enableChat(){
+  chatInput.disabled = false;
+  sendBtn.disabled = false;
+  chatInput.placeholder = "Ask about a clause, term, or risk…";
+  qaButtons.forEach(b => b.disabled = false);
+}
+
+function addMessage(type, text){
+  const div = document.createElement('div');
+  div.className = 'msg ' + type;
+  if (type === 'bot'){
+    div.innerHTML = `<span class="label">Document Advisor</span><div class="bubble">${text}</div><span class="time">${nowStamp()}</span>`;
+  } else if (type === 'typing'){
+    div.className = 'msg bot';
+    div.innerHTML = `<span class="label">Document Advisor</span><div class="typing-dots"><span></span><span></span><span></span></div>`;
+  } else {
+    div.textContent = text;
+    if (type === 'user'){
+      const t = document.createElement('span');
+      t.className = 'time';
+      t.style.color = 'rgba(255,255,255,.7)';
+      t.textContent = nowStamp();
+      div.appendChild(document.createElement('br'));
+      div.appendChild(t);
+    }
+  }
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+  return div;
+}
+
+qaButtons.forEach(btn => btn.addEventListener('click', () => sendMessage(btn.dataset.q)));
+sendBtn.addEventListener('click', () => sendMessage(chatInput.value));
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(chatInput.value); });
+
+function sendMessage(text){
+  text = (text || "").trim();
+  if (!text) return;
+  addMessage('user', text);
+  chatInput.value = "";
+  callAdvisor(text);
+}
+
+async function callAdvisor(userQuestion){
+  if (!geminiKey){
+    addMessage('bot', "Please paste your OpenRouter API key at the top and click Save first.");
+    return;
+  }
+  const thinking = addMessage('typing');
+
+  const systemPrompt = `You are a careful legal document advisor. Explain clauses in plain language, flag risky or unusual clauses (e.g. penalty clauses, auto-renewal, liability waivers), and always recommend the user consult a licensed lawyer before signing. Never give definitive legal advice.`;
+  const docText = (activeDoc?.text || "").slice(0, 12000);
+
+  try {
+    const res = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${geminiKey}`
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b:free",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `--- CONTRACT TEXT ---\n${docText}\n--- END ---\n\nUser question: ${userQuestion}` }
+          ]
+        })
+      }
+    );
+    const data = await res.json();
+    if (data.error){
+      setBotReply(thinking, `Error (${res.status}): ${data.error.message || JSON.stringify(data.error)}`);
+      return;
+    }
+    if (!res.ok){
+      setBotReply(thinking, `HTTP ${res.status}: ${JSON.stringify(data)}`);
+      return;
+    }
+    const answer = data.choices?.[0]?.message?.content || "No response received.";
+    setBotReply(thinking, answer.replace(/\n/g, "<br>"));
+  } catch (err){
+    setBotReply(thinking, `Request failed: ${err.message}`);
+  }
+}
+
+function setBotReply(msgDiv, html){
+  msgDiv.innerHTML = `<span class="label">Document Advisor</span><div class="bubble">${html}</div><span class="time">${nowStamp()}</span>`;
+}
+</script>
+</body>
+</html>
